@@ -11,7 +11,7 @@ db = client.turtlegram
 
 @app.route("/")
 def hello_word():
-    return jsonify({'message':'success'})
+    return jsonify({'msg':'success'})
 
 @app.route("/signup", methods=["POST"])
 def sign_up():
@@ -27,7 +27,7 @@ def sign_up():
     
     db.users.insert_one(doc)
     
-    return jsonify({'message':'success'})
+    return jsonify({'msg':'success'})
 
 
 
