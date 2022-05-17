@@ -1,5 +1,6 @@
 import hashlib
 import json
+from bson import ObjectId
 import jwt
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
@@ -36,15 +37,13 @@ def sign_up():
 
 @app.route("/login", methods=["POST"])
 def login():
-    print(request)
     data = json.loads(request.data)
-    print(data)
     
     email = data.get("email")
     password = data.get("password")
+    
      # 회원가입 때와 같은 방법으로 pw를 암호화합니다.
     hashed_pw = hashlib.sha256(password.encode('utf-8')).hexdigest()
-    print(hashed_pw)
     
     result = db.users.find_one({
         'email': email, 
@@ -52,7 +51,6 @@ def login():
     })
     
     if result:
-        print(result)
        
         
         payload = {
@@ -60,8 +58,7 @@ def login():
             'exp': datetime.utcnow() + timedelta(seconds=60 * 60 * 24)
         }
         token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm='HS256')
-        print(payload)
-        print(token)
+        
     
         return jsonify({'result': 'success', 'token': token})
     else:
@@ -69,9 +66,26 @@ def login():
     
     
     
+@app.route("/getuserinfo", methods=["GET"])
+def get_user_info():
+    token = request.headers.get("Authorization")
     
-
-
+    
+    if not token:
+        return jsonify({"message": "no token"}), 402
+    
+    user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+    print(user)
+    result = db.users.find_one({
+        '_id': ObjectId(user["id"])
+    })
+    
+    print(result)
+    
+    
+    
+    return jsonify({"msg": "success", "email": result["email"]})
+    
 
 if __name__ =='__main__':
     app.run('0.0.0.0', port=5000, debug=True)
