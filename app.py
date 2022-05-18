@@ -1,9 +1,11 @@
+from functools import wraps
 import hashlib
 import json
+from re import S
 from bson import ObjectId
 import jwt
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request
 from flask_cors import CORS
 from pymongo import MongoClient
 
@@ -14,8 +16,28 @@ cors = CORS(app, resources={r'*': {'origins': '*'}})
 client = MongoClient('localhost', 27017)
 db = client.turtlegram
 
+
+#데코레이터
+def authorize(f):
+    @wraps(f)
+    def decorated_function():
+        if not 'Authorization' in request.headers:
+            abort(401)
+        token = request.headers['Authorization']
+        try:
+            user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        except: 
+            abort(401)
+        return f(user)        
+        
+    return decorated_function
+
+
+
 @app.route("/")
-def hello_word():
+@authorize
+def hello_word(user):
+    print(user)
     return jsonify({'msg':'success'})
 
 @app.route("/signup", methods=["POST"])
@@ -67,15 +89,8 @@ def login():
     
     
 @app.route("/getuserinfo", methods=["GET"])
-def get_user_info():
-    token = request.headers.get("Authorization")
-    
-    
-    if not token:
-        return jsonify({"message": "no token"}), 402
-    
-    user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-    print(user)
+@authorize
+def get_user_info(user):
     result = db.users.find_one({
         '_id': ObjectId(user["id"])
     })
@@ -85,7 +100,39 @@ def get_user_info():
     
     
     return jsonify({"msg": "success", "email": result["email"]})
+
+
+@app.route("/article", methods=["POST"])
+@authorize
+def post_article(user):
+    data = json.loads(request.data)
+    print(data)
     
+    db_user = db.users.find_one({'_id': ObjectId(user.get('id'))})
+    now = datetime.now().strftime("%H:%M:%S")
+    doc = {
+        'title' : data.get('title', None),
+        'content' : data.get('content', None),
+        'user' : user['id'],
+        'user_email' : db_user['email'],
+        'time' : now
+    }
+    print(doc)
+    
+    db.article.insert_one(doc)
+    
+    
+    
+    return jsonify({"msg":"success"})
+
+
+@app.route("/article", methods=["GET"])
+def get_article():
+    articles = list(db.article.find())
+    for article in articles:
+        article["_id"] = str(article["_id"])
+
+    return jsonify({"msg":"success", "articles": articles})
 
 if __name__ =='__main__':
     app.run('0.0.0.0', port=5000, debug=True)
