@@ -134,5 +134,16 @@ def get_article():
 
     return jsonify({"msg":"success", "articles": articles})
 
+
+@app.route("/article/<article_id>", methods=["GET"])
+def get_article_detail(article_id):
+    print(article_id)
+    article = db.article.find_one({"_id": ObjectId(article_id)})
+    print(article)
+    article["_id"] = str(article["_id"])
+    
+    return jsonify({"msg":"success", "article": article})
+    
+
 if __name__ =='__main__':
     app.run('0.0.0.0', port=5000, debug=True)
